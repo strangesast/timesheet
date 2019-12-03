@@ -39,7 +39,12 @@ def check_cache(req):
     '''
     prepped = session.prepare_request(req)
     url = urllib.parse.quote(prepped.url, '') # remove slashes etc
-    if os.path.exists(path := os.path.join('cache', url)): # cache directory must be present
+    if not os.path.isdir('cache'):
+        os.mkdir('cache')
+
+    path = os.path.join('cache', url)
+
+    if os.path.exists(path): # cache directory must be present
         with open(path, 'r') as f:
             return f.read()
     res = session.send(prepped)
