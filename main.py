@@ -21,6 +21,10 @@ def valid_date(date_s: str):
     try:
         return datetime.strptime(date_s, '%m/%d/%y')
     except ValueError:
+        pass
+    try:
+        return datetime.strptime(date_s, '%m/%d/%Y')
+    except ValueError:
         msg = f'Not a valid date: "{date_s}""'
         raise argparse.ArgumentTypeError(msg)
 
@@ -100,11 +104,10 @@ def parse_date_str(date_s):
     return datetime.fromisoformat(date_s.replace("Z", "+00:00"))
 
 
-def round_hours(delta: timedelta, frac=4):
-    ''' round hours to quarters / halfs etc
+def round_to(num: float, frac=4):
+    ''' round to quarters / halfs etc
     '''
-    hrs = delta / timedelta(hours=1)
-    return (math.floor(hrs * frac) / frac, hrs)
+    return (math.floor(num * frac) / frac, num)
 
 
 def get_timeline(target_date):
@@ -123,14 +126,16 @@ def get_timeline(target_date):
             yield (name, start, end)
 
 
-def get_timeline_for_week(target_date):
-    ''' print start, duration for each day in target week
+def get_timeline_for_week(target_date, sub=0.5):
+    ''' print start, duration for each day in target week.
+        remove break time over threshold
     '''
     start = target_date - timedelta(days=target_date.weekday())
     days = [start + timedelta(days=i) for i in range(0, 5)]
 
     print(' - '.join(d.strftime('%a, %m/%d/%y') for d in (days[0], days[-1])))
     print()
+    cum = 0
     for each_date in days:
         print(each_date.strftime('%m/%d/%y'))
         timeline = get_timeline(each_date)
@@ -138,12 +143,19 @@ def get_timeline_for_week(target_date):
         for name, start, end in timeline:
             if name.startswith('Work'):
                 print(' - '.join(d.astimezone(LOCALTZ).strftime('%I:%M%p') for d in (start, end)))
-                delta = end - start
-                rounded, exact = round_hours(delta)
+                delta = (end - start) / timedelta(hours=1)
+                rounded, exact = round_to(delta)
                 tot += exact
                 print(f'{rounded} ({exact:.2f})')
-        print(f'total: {tot:.2f}')
+        if tot > 6:
+            tot -= sub
+        cum += tot
+        rounded, exact = round_to(tot)
+        print(f'total: {rounded} ({exact:.2f})')
         print()
+
+    rounded, exact = round_to(cum)
+    print(f'CUMULATIVE: {rounded} ({exact:.2f})')
 
 
 if __name__ == '__main__':
